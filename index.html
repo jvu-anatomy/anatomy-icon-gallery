@@ -10,8 +10,9 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; padding: 24px; }
   h1 { font-size: 28px; margin-bottom: 8px; }
   h2 { font-size: 20px; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #e0e0e0; }
+  h3 { font-size: 17px; margin: 24px 0 12px; color: #444; }
   .subtitle { color: #666; margin-bottom: 24px; font-size: 14px; }
-  .stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .stats, .redundant-stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
   .stat { background: white; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
   .stat-num { font-size: 24px; font-weight: 700; }
   .stat-label { font-size: 12px; color: #666; }
@@ -23,7 +24,7 @@
   .source-core { background: #e8f4fd; color: #2b6cb0; }
   .source-custom { background: #fef3cd; color: #856404; }
   .source-prime { background: #f0e6ff; color: #6b21a8; }
-  .filters { margin-bottom: 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; position: sticky; top: 0; background: #f5f5f5; padding: 12px 0; z-index: 10; }
+  .filters { margin-bottom: 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; position: sticky; top: 48px; background: #f5f5f5; padding: 12px 0; z-index: 9; }
   .search { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 300px; }
   .filter-btn { padding: 6px 12px; border: 1px solid #ddd; border-radius: 16px; font-size: 12px; cursor: pointer; background: white; transition: all 0.2s; }
   .filter-btn:hover, .filter-btn.active { background: #333; color: white; border-color: #333; }
@@ -37,12 +38,45 @@
   .app-tag { width: 8px; height: 8px; border-radius: 50%; }
   .hidden { display: none; }
   .count { font-size: 14px; color: #999; margin-left: 8px; }
+
+  /* Tab Navigation */
+  .tab-nav { display: flex; gap: 0; margin-bottom: 24px; position: sticky; top: 0; background: #f5f5f5; padding: 12px 0 0; z-index: 10; border-bottom: 2px solid #e0e0e0; }
+  .tab-btn { padding: 10px 24px; border: none; background: none; font-size: 15px; font-weight: 600; color: #888; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+  .tab-btn:hover { color: #555; }
+  .tab-btn.active { color: #333; border-bottom-color: #333; }
+  .tab-btn .tab-badge { display: inline-block; background: #e53e3e; color: white; font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; font-weight: 700; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Redundant Icons Page */
+  .dup-desc { color: #666; font-size: 13px; margin-bottom: 16px; }
+  .dup-group { background: white; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .dup-group-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .dup-type { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .dup-type.exact { background: #fed7d7; color: #c53030; }
+  .dup-type.near { background: #fefcbf; color: #975a16; }
+  .dup-group-label { font-size: 13px; color: #666; }
+  .dup-group-icons { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .dup-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px; border: 1px solid #eee; border-radius: 8px; min-width: 140px; max-width: 200px; }
+  .dup-preview { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; }
+  .dup-preview svg { max-width: 100%; max-height: 100%; }
+  .dup-name { font-size: 12px; font-weight: 600; text-align: center; word-break: break-all; color: #333; }
+  .dup-apps { font-size: 10px; color: #888; text-align: center; }
+  .no-redundant { text-align: center; padding: 48px; color: #999; font-size: 16px; }
 </style>
 </head>
 <body>
 
 <h1>Anatomy Frontend Icon Gallery</h1>
-<p class="subtitle">164 total icons (146 SVG components + 18 PrimeIcons) &mdash; Updated 2026-02-13</p>
+<p class="subtitle">164 total icons (146 SVG components + 18 PrimeIcons) &mdash; Updated 2026-02-17</p>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('gallery', this)">Gallery</button>
+  <button class="tab-btn" onclick="switchTab('redundant', this)">Redundant Icons<span class="tab-badge">7</span></button>
+</div>
+
+<!-- ═══ Gallery Tab ═══ -->
+<div class="tab-content active" id="tab-gallery">
 
 <div class="stats">
   <div class="stat"><div class="stat-num">164</div><div class="stat-label">Total Icons</div></div>
@@ -1082,7 +1116,164 @@
   </div>
 </div>
 
+</div>
+
+<!-- ═══ Redundant Icons Tab ═══ -->
+<div class="tab-content" id="tab-redundant">
+<h2>Redundant Icon Analysis</h2>
+<p class="dup-desc">Icons detected as visually identical or very similar. Exact duplicates share identical SVG path data. Near duplicates have >80% path similarity.</p>
+
+
+<div class="redundant-stats">
+  <div class="stat"><div class="stat-num">5</div><div class="stat-label">Exact Duplicate Groups</div></div>
+  <div class="stat"><div class="stat-num">11</div><div class="stat-label">Icons in Exact Groups</div></div>
+  <div class="stat"><div class="stat-num">2</div><div class="stat-label">Near Duplicate Pairs</div></div>
+</div>
+
+<h3>Exact Duplicates</h3><p class='dup-desc'>These icons have identical SVG path data despite having different names.</p>
+<div class="dup-group">
+  <div class="dup-group-header">    <span class="dup-type exact">EXACT</span>    <span class="dup-group-label">2 identical icons</span>  </div>
+  <div class="dup-group-icons"><div class="dup-card">
+  <div class="dup-preview"><svg width="138" height="16" viewBox="0 0 138 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g clipPath="url(#clip0_16_16655)">
+        <path d="M0 15.7348L6.44107 0.268555H7.91536L1.52081 15.7348H0ZM3.04162 10.9411V9.6614H11.3184V10.9411H3.04162ZM12.8356 15.7348L6.44107 0.268555H7.91536L14.3564 15.7348H12.8356Z" />
+        <path d="M21.8994 15.7347V0.268555H23.3308V15.7383H21.8994V15.7347ZM33.3037 15.7347L22.2358 1.06396L23.3308 0.268555L34.4023 14.9181L33.3037 15.7347ZM33.3037 15.7347V0.268555H34.735V15.7347H33.3037Z" />
+        <path d="M42.2891 15.7348L48.7301 0.268555H50.2044L43.8063 15.7348H42.2891ZM45.3307 10.9411V9.6614H53.6039V10.9411H45.3307ZM55.1247 15.7348L48.7301 0.268555H50.2044L56.6455 15.7348H55.1247Z" />
+        <path d="M61.5767 1.55181V0.268555H73.2064V1.55181H61.5767ZM66.6758 15.7348V1.55181H68.1072V15.7348H66.6758Z" />
+        <path d="M86.8399 16C85.3656 16 84.0559 15.6606 82.9144 14.9819C81.7729 14.3031 80.8783 13.3628 80.2306 12.1538C79.583 10.9448 79.2573 9.56253 79.2573 8C79.2573 6.43747 79.5758 5.03756 80.2199 3.83562C80.8604 2.63367 81.7443 1.69686 82.8715 1.01812C83.9951 0.339373 85.2976 0 86.7755 0C88.2534 0 89.5559 0.342908 90.6902 1.02872C91.8246 1.71454 92.7049 2.65488 93.3418 3.85683C93.9752 5.05877 94.2937 6.43747 94.2937 8C94.2937 9.56253 93.9752 10.9448 93.3418 12.1538C92.7084 13.3628 91.8317 14.3031 90.7153 14.9819C89.5917 15.6642 88.2999 16 86.8399 16ZM86.8399 14.7203C88.0172 14.7203 89.0585 14.4339 89.9602 13.8577C90.862 13.285 91.5705 12.4932 92.0858 11.4821C92.6011 10.4746 92.8587 9.31507 92.8587 8.00354C92.8587 6.692 92.5975 5.53248 92.0751 4.52497C91.5526 3.51746 90.8369 2.72559 89.928 2.14936C89.0191 1.57667 87.9671 1.28679 86.7755 1.28679C85.5839 1.28679 84.5497 1.57313 83.6337 2.14936C82.7176 2.72559 81.9984 3.51746 81.4759 4.52497C80.9535 5.53248 80.6923 6.69554 80.6923 8.00354C80.6923 9.31153 80.9535 10.4746 81.4759 11.4821C81.9984 12.4896 82.7248 13.2815 83.6551 13.8577C84.5855 14.4339 85.6483 14.7203 86.8399 14.7203Z" />
+        <path d="M103.05 15.7348V0.268555H104.481V15.7348H103.05ZM110.207 11.0754L103.408 1.0887L103.923 0.689235L104.481 0.268555L110.901 9.65786L110.207 11.0754ZM110.207 11.0754L109.559 9.6614L115.957 0.268555L116.515 0.689235L117.009 1.06396L110.207 11.0754ZM115.957 15.7348V0.268555H117.388V15.7348H115.957Z" />
+        <path d="M130.933 9.28314L125.297 0.268555H126.975L132.074 8.48773L130.933 9.28314ZM130.933 15.7348V8.31098H132.364V15.7348H130.933ZM132.364 9.28314L131.223 8.48773L136.322 0.268555H138L132.364 9.28314Z" />
+      </g>
+      <defs>
+        <clipPath id="clip0_16_16655">
+          <rect width="138" height="16" fill="white"/>
+        </clipPath>
+      </defs>
+    </svg></div>
+  <div class="dup-name">AnatomyLogo</div>
+  <span class="source-badge source-custom">custom</span>
+  <div class="dup-apps">empire, hil-ui, anatomy-financials-ui</div>
+</div><div class="dup-card">
+  <div class="dup-preview"><svg width="138" height="16" viewBox="0 0 138 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 15.7348L6.44107 0.268555H7.91536L1.52081 15.7348H0ZM3.04162 10.9411V9.6614H11.3184V10.9411H3.04162ZM12.8356 15.7348L6.44107 0.268555H7.91536L14.3564 15.7348H12.8356Z" fill="#333"/><path d="M21.8994 15.7347V0.268555H23.3308V15.7383H21.8994V15.7347ZM33.3037 15.7347L22.2358 1.06396L23.3308 0.268555L34.4023 14.9181L33.3037 15.7347ZM33.3037 15.7347V0.268555H34.735V15.7347H33.3037Z" fill="#333"/><path d="M42.2891 15.7348L48.7301 0.268555H50.2044L43.8063 15.7348H42.2891ZM45.3307 10.9411V9.6614H53.6039V10.9411H45.3307ZM55.1247 15.7348L48.7301 0.268555H50.2044L56.6455 15.7348H55.1247Z" fill="#333"/><path d="M61.5767 1.55181V0.268555H73.2064V1.55181H61.5767ZM66.6758 15.7348V1.55181H68.1072V15.7348H66.6758Z" fill="#333"/><path d="M86.8399 16C85.3656 16 84.0559 15.6606 82.9144 14.9819C81.7729 14.3031 80.8783 13.3628 80.2306 12.1538C79.583 10.9448 79.2573 9.56253 79.2573 8C79.2573 6.43747 79.5758 5.03756 80.2199 3.83562C80.8604 2.63367 81.7443 1.69686 82.8715 1.01812C83.9951 0.339373 85.2976 0 86.7755 0C88.2534 0 89.5559 0.342908 90.6902 1.02872C91.8246 1.71454 92.7049 2.65488 93.3418 3.85683C93.9752 5.05877 94.2937 6.43747 94.2937 8C94.2937 9.56253 93.9752 10.9448 93.3418 12.1538C92.7084 13.3628 91.8317 14.3031 90.7153 14.9819C89.5917 15.6642 88.2999 16 86.8399 16ZM86.8399 14.7203C88.0172 14.7203 89.0585 14.4339 89.9602 13.8577C90.862 13.285 91.5705 12.4932 92.0858 11.4821C92.6011 10.4746 92.8587 9.31507 92.8587 8.00354C92.8587 6.692 92.5975 5.53248 92.0751 4.52497C91.5526 3.51746 90.8369 2.72559 89.928 2.14936C89.0191 1.57667 87.9671 1.28679 86.7755 1.28679C85.5839 1.28679 84.5497 1.57313 83.6337 2.14936C82.7176 2.72559 81.9984 3.51746 81.4759 4.52497C80.9535 5.53248 80.6923 6.69554 80.6923 8.00354C80.6923 9.31153 80.9535 10.4746 81.4759 11.4821C81.9984 12.4896 82.7248 13.2815 83.6551 13.8577C84.5855 14.4339 85.6483 14.7203 86.8399 14.7203Z" fill="#333"/><path d="M103.05 15.7348V0.268555H104.481V15.7348H103.05ZM110.207 11.0754L103.408 1.0887L103.923 0.689235L104.481 0.268555L110.901 9.65786L110.207 11.0754ZM110.207 11.0754L109.559 9.6614L115.957 0.268555L116.515 0.689235L117.009 1.06396L110.207 11.0754ZM115.957 15.7348V0.268555H117.388V15.7348H115.957Z" fill="#333"/><path d="M130.933 9.28314L125.297 0.268555H126.975L132.074 8.48773L130.933 9.28314ZM130.933 15.7348V8.31098H132.364V15.7348H130.933ZM132.364 9.28314L131.223 8.48773L136.322 0.268555H138L132.364 9.28314Z" fill="#333"/><path d="clip0_16_16655" fill="#333"/></svg></div>
+  <div class="dup-name">AnatomyLogoIcon</div>
+  <span class="source-badge source-core">core</span>
+  <div class="dup-apps">empire, hil-ui, anatomy-financials-ui</div>
+</div></div>
+</div><div class="dup-group">
+  <div class="dup-group-header">    <span class="dup-type exact">EXACT</span>    <span class="dup-group-label">2 identical icons</span>  </div>
+  <div class="dup-group-icons"><div class="dup-card">
+  <div class="dup-preview"><svg class="check" width="31" height="32" viewBox="0 0 31 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15.5 0.5C6.93591 0.5 0 7.43591 0 16C0 24.5641 6.93657 31.5 15.5 31.5C24.0634 31.5 31 24.5634 31 16C31 7.43657 24.0641 0.5 15.5 0.5ZM21.7623 13.2179L14.3069 20.6733C14.0047 20.9756 13.6094 21.1304 13.2142 21.1304C12.8189 21.1304 12.4236 20.9756 12.1214 20.6733L8.90488 17.4568C8.30037 16.8523 8.30037 15.8678 8.90488 15.2633C9.50939 14.6588 10.4939 14.6588 11.0984 15.2633L13.2215 17.3864L19.5768 11.0311C20.1813 10.4266 21.1658 10.4266 21.7703 11.0311C22.3748 11.6356 22.3748 12.6201 21.7703 13.2246L21.7623 13.2173V13.2179Z" fill="#333"/>
+    </svg></div>
+  <div class="dup-name">CheckIcon</div>
+  <span class="source-badge source-custom">custom</span>
+  <div class="dup-apps">empire, anatomy-financials-ui</div>
+</div><div class="dup-card">
+  <div class="dup-preview"><svg width="31" height="32" viewBox="0 0 31 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15.5 0.5C6.93591 0.5 0 7.43591 0 16C0 24.5641 6.93657 31.5 15.5 31.5C24.0634 31.5 31 24.5634 31 16C31 7.43657 24.0641 0.5 15.5 0.5ZM21.7623 13.2179L14.3069 20.6733C14.0047 20.9756 13.6094 21.1304 13.2142 21.1304C12.8189 21.1304 12.4236 20.9756 12.1214 20.6733L8.90488 17.4568C8.30037 16.8523 8.30037 15.8678 8.90488 15.2633C9.50939 14.6588 10.4939 14.6588 11.0984 15.2633L13.2215 17.3864L19.5768 11.0311C20.1813 10.4266 21.1658 10.4266 21.7703 11.0311C22.3748 11.6356 22.3748 12.6201 21.7703 13.2246L21.7623 13.2173V13.2179Z" fill="#333"/></svg></div>
+  <div class="dup-name">CheckmarkIcon</div>
+  <span class="source-badge source-core">core</span>
+  <div class="dup-apps">review-eob-mf, empire, hil-ui, document-center-mf, anatomy-financials-ui</div>
+</div></div>
+</div><div class="dup-group">
+  <div class="dup-group-header">    <span class="dup-type exact">EXACT</span>    <span class="dup-group-label">3 identical icons</span>  </div>
+  <div class="dup-group-icons"><div class="dup-card">
+  <div class="dup-preview"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.4594 6.79756L11.0876 4.75944L11.213 4.257C11.4488 3.31633 10.8818 2.35678 9.9519 2.11878L3.65579 0.5L0.982048 16.7388C0.924045 17.0958 1.16354 17.432 1.51717 17.4906C1.55272 17.4962 1.58827 17.5 1.62382 17.5C1.93629 17.5 2.21133 17.2714 2.26372 16.9503L3.5192 9.21722L8.87605 8.26711C8.80307 8.61656 8.90037 8.97544 9.14174 9.23989C9.34942 9.46656 9.63757 9.59122 9.93506 9.59122C9.99681 9.59122 10.0586 9.58556 10.1203 9.57611L16.3004 8.50133C16.6971 8.43333 16.989 8.11411 17.0264 7.70989C17.0638 7.30567 16.8374 6.93922 16.4613 6.79567L16.4594 6.79756Z" fill="#333"/><path d="clip0_17022_21794" fill="#333"/></svg></div>
+  <div class="dup-name">FlagCautionIcon</div>
+  <span class="source-badge source-core">core</span>
+  <div class="dup-apps">review-eob-mf, hil-ui</div>
+</div><div class="dup-card">
+  <div class="dup-preview"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.4594 6.79756L11.0876 4.75944L11.213 4.257C11.4488 3.31633 10.8818 2.35678 9.9519 2.11878L3.65579 0.5L0.982048 16.7388C0.924045 17.0958 1.16354 17.432 1.51717 17.4906C1.55272 17.4962 1.58827 17.5 1.62382 17.5C1.93629 17.5 2.21133 17.2714 2.26372 16.9503L3.5192 9.21722L8.87605 8.26711C8.80307 8.61656 8.90037 8.97544 9.14174 9.23989C9.34942 9.46656 9.63757 9.59122 9.93506 9.59122C9.99681 9.59122 10.0586 9.58556 10.1203 9.57611L16.3004 8.50133C16.6971 8.43333 16.989 8.11411 17.0264 7.70989C17.0638 7.30567 16.8374 6.93922 16.4613 6.79567L16.4594 6.79756Z" fill="#333"/><path d="clip0_17022_21794" fill="#333"/></svg></div>
+  <div class="dup-name">FlagIcon</div>
+  <span class="source-badge source-core">core</span>
+  <div class="dup-apps">review-eob-mf, hil-ui</div>
+</div><div class="dup-card">
+  <div class="dup-preview"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.4594 6.79756L11.0876 4.75944L11.213 4.257C11.4488 3.31633 10.8818 2.35678 9.9519 2.11878L3.65579 0.5L0.982048 16.7388C0.924045 17.0958 1.16354 17.432 1.51717 17.4906C1.55272 17.4962 1.58827 17.5 1.62382 17.5C1.93629 17.5 2.21133 17.2714 2.26372 16.9503L3.5192 9.21722L8.87605 8.26711C8.80307 8.61656 8.90037 8.97544 9.14174 9.23989C9.34942 9.46656 9.63757 9.59122 9.93506 9.59122C9.99681 9.59122 10.0586 9.58556 10.1203 9.57611L16.3004 8.50133C16.6971 8.43333 16.989 8.11411 17.0264 7.70989C17.0638 7.30567 16.8374 6.93922 16.4613 6.79567L16.4594 6.79756Z" fill="#333"/></svg></div>
+  <div class="dup-name">RedFlag</div>
+  <span class="source-badge source-core">core</span>
+  <div class="dup-apps">hil-ui</div>
+</div></div>
+</div><div class="dup-group">
+  <div class="dup-group-header">    <span class="dup-type exact">EXACT</span>    <span class="dup-group-label">2 identical icons</span>  </div>
+  <div class="dup-group-icons"><div class="dup-card">
+  <div class="dup-preview"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 13 13" fill="none">
+    <g clipPath="url(#clip0_10033_10477)">
+      <path d="M1.15156 7.09106C1.1887 7.3958 0.965844 7.67082 0.661273 7.70798C0.638987 7.70798 0.616701 7.70798 0.594416 7.70798C0.31213 7.70798 0.0744158 7.49986 0.0447015 7.20998C-0.178156 5.24028 0.497844 3.30775 1.90184 1.90295C4.30127 -0.497852 8.11956 -0.62421 10.6676 1.51644V0.72113C10.6676 0.416385 10.9201 0.163669 11.2247 0.163669C11.5293 0.163669 11.7818 0.416385 11.7818 0.72113V2.82462C11.7818 3.12936 11.5293 3.38208 11.2247 3.38208H9.12242C8.81784 3.38208 8.56527 3.12936 8.56527 2.82462C8.56527 2.51987 8.81784 2.26716 9.12242 2.26716H9.8207C7.71099 0.602205 4.63556 0.743429 2.68927 2.69083C1.52299 3.85778 0.965844 5.45584 1.14413 7.09106H1.15156ZM12.963 5.79031C12.9258 5.48557 12.6584 5.27002 12.3464 5.29975C12.0418 5.33691 11.819 5.61193 11.8561 5.91667C12.0418 7.54446 11.4773 9.14995 10.311 10.3169C8.3647 12.2643 5.28927 12.4055 3.17956 10.7406H3.87784C4.18242 10.7406 4.43499 10.4879 4.43499 10.1831C4.43499 9.87836 4.18242 9.62565 3.87784 9.62565H1.77556C1.47099 9.62565 1.21842 9.87836 1.21842 10.1831V12.2866C1.21842 12.5913 1.47099 12.8441 1.77556 12.8441C2.08013 12.8441 2.3327 12.5913 2.3327 12.2866V11.4913C3.53613 12.5021 5.01442 13.0076 6.50013 13.0076C8.16413 13.0076 9.82813 12.3758 11.0984 11.1048C12.5024 9.69998 13.1784 7.76001 12.963 5.79031Z" />
+    </g>
+    <defs>
+      <clipPath id="clip0_10033_10477">
+        <rect width="13" height="13" />
+      </clipPath>
+    </defs>
+  </svg></div>
+  <div class="dup-name">Repeat</div>
+  <span class="source-badge source-custom">custom</span>
+  <div class="dup-apps">anatomy-financials-ui</div>
+</div><div class="dup-card">
+  <div class="dup-preview"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.15156 7.09106C1.1887 7.3958 0.965844 7.67082 0.661273 7.70798C0.638987 7.70798 0.616701 7.70798 0.594416 7.70798C0.31213 7.70798 0.0744158 7.49986 0.0447015 7.20998C-0.178156 5.24028 0.497844 3.30775 1.90184 1.90295C4.30127 -0.497852 8.11956 -0.62421 10.6676 1.51644V0.72113C10.6676 0.416385 10.9201 0.163669 11.2247 0.163669C11.5293 0.163669 11.7818 0.416385 11.7818 0.72113V2.82462C11.7818 3.12936 11.5293 3.38208 11.2247 3.38208H9.12242C8.81784 3.38208 8.56527 3.12936 8.56527 2.82462C8.56527 2.51987 8.81784 2.26716 9.12242 2.26716H9.8207C7.71099 0.602205 4.63556 0.743429 2.68927 2.69083C1.52299 3.85778 0.965844 5.45584 1.14413 7.09106H1.15156ZM12.963 5.79031C12.9258 5.48557 12.6584 5.27002 12.3464 5.29975C12.0418 5.33691 11.819 5.61193 11.8561 5.91667C12.0418 7.54446 11.4773 9.14995 10.311 10.3169C8.3647 12.2643 5.28927 12.4055 3.17956 10.7406H3.87784C4.18242 10.7406 4.43499 10.4879 4.43499 10.1831C4.43499 9.87836 4.18242 9.62565 3.87784 9.62565H1.77556C1.47099 9.62565 1.21842 9.87836 1.21842 10.1831V12.2866C1.21842 12.5913 1.47099 12.8441 1.77556 12.8441C2.08013 12.8441 2.3327 12.5913 2.3327 12.2866V11.4913C3.53613 12.5021 5.01442 13.0076 6.50013 13.0076C8.16413 13.0076 9.82813 12.3758 11.0984 11.1048C12.5024 9.69998 13.1784 7.76001 12.963 5.79031Z" fill="#333"/><path d="clip0_10033_10477" fill="#333"/></svg></div>
+  <div class="dup-name">RepeatIcon</div>
+  <span class="source-badge source-core">core</span>
+  <div class="dup-apps">anatomy-financials-ui</div>
+</div></div>
+</div><div class="dup-group">
+  <div class="dup-group-header">    <span class="dup-type exact">EXACT</span>    <span class="dup-group-label">2 identical icons</span>  </div>
+  <div class="dup-group-icons"><div class="dup-card">
+  <div class="dup-preview"><svg width="14" height="15" viewBox="0 0 14 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 0.571289C10.8662 0.571289 14 3.70534 14 7.57129C14 11.4372 10.866 14.5713 7 14.5713C3.13405 14.5713 0 11.4372 0 7.57129C0 3.70534 3.13405 0.571289 7 0.571289ZM3.53462 7.66274C3.2762 7.37688 3.29841 6.9358 3.58375 6.67764C3.86961 6.41921 4.31069 6.44142 4.56885 6.72676L6.31252 8.65334L10.0805 4.76126C10.3496 4.48454 10.7915 4.47853 11.0682 4.74767C11.3449 5.01681 11.3509 5.45867 11.0818 5.73539L6.79671 10.1616L6.79566 10.1605C6.78547 10.171 6.77476 10.1814 6.76352 10.1914C6.47818 10.4498 6.0371 10.4278 5.77842 10.1422L3.53384 7.66248H3.53436L3.53462 7.66274Z" fill="#333" fill-rule="evenodd" clip-rule="evenodd"/></svg></div>
+  <div class="dup-name">StatusCheckIcon</div>
+  <span class="source-badge source-core">core</span>
+  <div class="dup-apps">empire, anatomy-financials-ui</div>
+</div><div class="dup-card">
+  <div class="dup-preview"><svg width="14" height="15" viewBox="0 0 14 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path fillRule="evenodd" clipRule="evenodd" d="M7 0.571289C10.8662 0.571289 14 3.70534 14 7.57129C14 11.4372 10.866 14.5713 7 14.5713C3.13405 14.5713 0 11.4372 0 7.57129C0 3.70534 3.13405 0.571289 7 0.571289ZM3.53462 7.66274C3.2762 7.37688 3.29841 6.9358 3.58375 6.67764C3.86961 6.41921 4.31069 6.44142 4.56885 6.72676L6.31252 8.65334L10.0805 4.76126C10.3496 4.48454 10.7915 4.47853 11.0682 4.74767C11.3449 5.01681 11.3509 5.45867 11.0818 5.73539L6.79671 10.1616L6.79566 10.1605C6.78547 10.171 6.77476 10.1814 6.76352 10.1914C6.47818 10.4498 6.0371 10.4278 5.77842 10.1422L3.53384 7.66248H3.53436L3.53462 7.66274Z" fill="#62B19E"/>
+  </svg></div>
+  <div class="dup-name">StatusIconCheck</div>
+  <span class="source-badge source-custom">custom</span>
+  <div class="dup-apps">anatomy-financials-ui</div>
+</div></div>
+</div>
+
+<h3>Near Duplicates (>80% similar)</h3><p class='dup-desc'>These icons have very similar SVG paths and may be visual duplicates or minor variants.</p>
+<div class="dup-group">
+  <div class="dup-group-header">    <span class="dup-type near">~88%</span>    <span class="dup-group-label">Near duplicate</span>  </div>
+  <div class="dup-group-icons"><div class="dup-card">
+  <div class="dup-preview"><svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="pattern1" fill="#333"/><path d="image0_10033_18900" fill="#333"/></svg></div>
+  <div class="dup-name">LiveOakBank</div>
+  <span class="source-badge source-core">core</span>
+  <div class="dup-apps">anatomy-financials-ui</div>
+</div><div class="dup-card">
+  <div class="dup-preview"><svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="pattern0" fill="#333"/><path d="image0_10033_18898" fill="#333"/></svg></div>
+  <div class="dup-name">Plaid</div>
+  <span class="source-badge source-core">core</span>
+  <div class="dup-apps">empire, anatomy-financials-ui</div>
+</div></div>
+</div><div class="dup-group">
+  <div class="dup-group-header">    <span class="dup-type near">~81%</span>    <span class="dup-group-label">Near duplicate</span>  </div>
+  <div class="dup-group-icons"><div class="dup-card">
+  <div class="dup-preview"><svg width="150" height="150" viewBox="0 0 150 150" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="pattern0" fill="#333"/><path d="image0_16021_31069" fill="#333"/></svg></div>
+  <div class="dup-name">CompleteSectionIcon</div>
+  <span class="source-badge source-core">core</span>
+  <div class="dup-apps">review-eob-mf</div>
+</div><div class="dup-card">
+  <div class="dup-preview"><svg width="222" height="220" viewBox="0 0 222 220" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="pattern0" fill="#333"/><path d="image0_1_2609" fill="#333"/></svg></div>
+  <div class="dup-name">SubmittedIcon</div>
+  <span class="source-badge source-core">core</span>
+  <div class="dup-apps">anatomy-financials-ui</div>
+</div></div>
+</div>
+
+
+
+</div>
+
 <script>
+/* Tab switching */
+function switchTab(tabId, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* Gallery filters */
 let currentFilter = 'all';
 
 function setFilter(app, btn) {
@@ -1107,6 +1298,7 @@ function filterIcons() {
   document.getElementById('visibleCount').textContent = visible + ' icons';
 }
 
+/* Click to copy SVG */
 document.querySelectorAll('.icon-card').forEach(card => {
   card.addEventListener('click', () => {
     const preview = card.querySelector('.icon-preview');

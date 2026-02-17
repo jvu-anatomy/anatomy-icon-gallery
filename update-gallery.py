@@ -8,6 +8,8 @@ Scans ALL frontend app repos for icon usage, extracts SVGs from:
   3. Local designSystem icon re-exports (empire, hil-ui)
   4. PrimeIcons CSS class usage
 
+Also detects visually redundant icons (exact and near-duplicate SVGs).
+
 Usage:
     python update-gallery.py                  # Generate gallery only
     python update-gallery.py --push           # Generate + commit + push to GitHub
@@ -21,6 +23,7 @@ import re
 import subprocess
 import webbrowser
 from datetime import date
+from difflib import SequenceMatcher
 from pathlib import Path
 
 # ─── Configuration ───────────────────────────────────────────────────────────
@@ -52,6 +55,9 @@ APP_COLORS = {
 
 # Known PrimeIcon CSS classes used across apps
 PRIMEICON_PATTERN = re.compile(r"""pi[- ]pi-([a-z0-9-]+)|iconClass\s*=\s*['"]pi-([a-z0-9-]+)['"]""")
+
+# Similarity threshold for near-duplicate detection (0.0 to 1.0)
+NEAR_DUPLICATE_THRESHOLD = 0.80
 
 
 # ─── SVG Extraction from compiled React components ───────────────────────────
@@ -267,10 +273,114 @@ def scan_app_for_primeicons(src_dir):
     return found
 
 
+# ─── Redundancy Detection ────────────────────────────────────────────────────
+
+def normalize_paths(svg_str):
+    """Extract and normalize path d-attributes from an SVG for comparison.
+
+    Returns a sorted tuple of normalized path data strings.
+    Strips fill colors, filters out clipPath ID artifacts, normalizes whitespace.
+    """
+    # Extract all d="..." values
+    d_values = re.findall(r'd="([^"]+)"', svg_str)
+
+    # Filter out clipPath ID artifacts (e.g., "clip0_14621_994")
+    d_values = [d for d in d_values if not re.match(r'^clip\d', d)]
+
+    # Filter out very short/empty paths
+    d_values = [d for d in d_values if len(d) > 5]
+
+    # Normalize whitespace
+    d_values = [" ".join(d.split()) for d in d_values]
+
+    # Sort for order-independent comparison
+    d_values.sort()
+
+    return tuple(d_values)
+
+
+def compute_fingerprint(paths_tuple):
+    """Create a single string fingerprint from normalized paths for comparison."""
+    return "|".join(paths_tuple)
+
+
+def find_redundant_groups(icons):
+    """Find groups of visually redundant icons.
+
+    Returns:
+        exact_groups: list of lists — icons with identical normalized path data
+        near_groups: list of (name_a, name_b, similarity) — icons with similar paths
+    """
+    # Build fingerprints for each icon
+    fingerprints = {}
+    for name, data in icons.items():
+        paths = normalize_paths(data["svg"])
+        if paths:  # skip icons with no extractable paths
+            fingerprints[name] = paths
+
+    # --- Exact duplicates: group by identical fingerprint ---
+    fp_to_names = {}
+    for name, paths in fingerprints.items():
+        fp = compute_fingerprint(paths)
+        if fp not in fp_to_names:
+            fp_to_names[fp] = []
+        fp_to_names[fp].append(name)
+
+    exact_groups = [sorted(names) for names in fp_to_names.values() if len(names) > 1]
+
+    # --- Near duplicates: compare fingerprints with SequenceMatcher ---
+    already_exact = set()
+    for group in exact_groups:
+        already_exact.update(group)
+
+    # Build list of (name, fingerprint_str) for comparison
+    fp_strs = {name: compute_fingerprint(paths) for name, paths in fingerprints.items()}
+
+    near_groups = []
+    names_list = sorted(fingerprints.keys())
+
+    for i, name_a in enumerate(names_list):
+        fp_a = fp_strs[name_a]
+        if not fp_a:
+            continue
+
+        for name_b in names_list[i + 1:]:
+            # Skip if both are in the same exact group already
+            if name_a in already_exact and name_b in already_exact:
+                # Check if they're in the SAME group — if so skip
+                same_group = False
+                for group in exact_groups:
+                    if name_a in group and name_b in group:
+                        same_group = True
+                        break
+                if same_group:
+                    continue
+
+            fp_b = fp_strs[name_b]
+            if not fp_b:
+                continue
+
+            # Quick length check — skip if lengths differ by more than 60%
+            len_a, len_b = len(fp_a), len(fp_b)
+            if len_a > 0 and len_b > 0:
+                ratio_len = min(len_a, len_b) / max(len_a, len_b)
+                if ratio_len < 0.4:
+                    continue
+
+            similarity = SequenceMatcher(None, fp_a, fp_b).ratio()
+            if similarity >= NEAR_DUPLICATE_THRESHOLD:
+                near_groups.append((name_a, name_b, round(similarity, 3)))
+
+    # Sort near groups by similarity (highest first)
+    near_groups.sort(key=lambda x: x[2], reverse=True)
+
+    return exact_groups, near_groups
+
+
 # ─── HTML Generation ─────────────────────────────────────────────────────────
 
-def generate_html(icons, primeicons_by_app, today):
-    """Generate the full HTML gallery page."""
+def generate_html(icons, primeicons_by_app, redundant_data, today):
+    """Generate the full HTML gallery page with redundant icons tab."""
     total = len(icons)
     sorted_icons = sorted(icons.items(), key=lambda x: x[0].lower())
 
@@ -343,6 +453,93 @@ def generate_html(icons, primeicons_by_app, today):
 
     grand_total = total + len(all_primeicons)
 
+    # ─── Redundant Icons Section ─────────────────────────────────────────
+    exact_groups = redundant_data.get("exact_groups", [])
+    near_groups = redundant_data.get("near_groups", [])
+
+    exact_count = sum(len(g) for g in exact_groups)
+    near_count = len(near_groups)
+    total_redundant_groups = len(exact_groups) + near_count
+
+    # Build exact duplicate group cards
+    exact_group_html = []
+    for group_idx, group in enumerate(exact_groups):
+        cards = []
+        for name in group:
+            data = icons[name]
+            source_label = data.get("source", "")
+            source_badge = (
+                '<span class="source-badge source-custom">custom</span>'
+                if "custom" in source_label
+                else '<span class="source-badge source-core">core</span>'
+            )
+            apps = ", ".join(data["used_by"]) if data["used_by"] else "unused"
+            cards.append(
+                f'<div class="dup-card">\n'
+                f'  <div class="dup-preview">{data["svg"]}</div>\n'
+                f'  <div class="dup-name">{name}</div>\n'
+                f'  {source_badge}\n'
+                f'  <div class="dup-apps">{apps}</div>\n'
+                f'</div>'
+            )
+        exact_group_html.append(
+            f'<div class="dup-group">\n'
+            f'  <div class="dup-group-header">'
+            f'    <span class="dup-type exact">EXACT</span>'
+            f'    <span class="dup-group-label">{len(group)} identical icons</span>'
+            f'  </div>\n'
+            f'  <div class="dup-group-icons">{"".join(cards)}</div>\n'
+            f'</div>'
+        )
+
+    # Build near duplicate pair cards
+    near_group_html = []
+    for name_a, name_b, similarity in near_groups:
+        pct = int(similarity * 100)
+        cards = []
+        for name in [name_a, name_b]:
+            data = icons[name]
+            source_label = data.get("source", "")
+            source_badge = (
+                '<span class="source-badge source-custom">custom</span>'
+                if "custom" in source_label
+                else '<span class="source-badge source-core">core</span>'
+            )
+            apps = ", ".join(data["used_by"]) if data["used_by"] else "unused"
+            cards.append(
+                f'<div class="dup-card">\n'
+                f'  <div class="dup-preview">{data["svg"]}</div>\n'
+                f'  <div class="dup-name">{name}</div>\n'
+                f'  {source_badge}\n'
+                f'  <div class="dup-apps">{apps}</div>\n'
+                f'</div>'
+            )
+        near_group_html.append(
+            f'<div class="dup-group">\n'
+            f'  <div class="dup-group-header">'
+            f'    <span class="dup-type near">~{pct}%</span>'
+            f'    <span class="dup-group-label">Near duplicate</span>'
+            f'  </div>\n'
+            f'  <div class="dup-group-icons">{"".join(cards)}</div>\n'
+            f'</div>'
+        )
+
+    redundant_section = f"""
+<div class="redundant-stats">
+  <div class="stat"><div class="stat-num">{len(exact_groups)}</div><div class="stat-label">Exact Duplicate Groups</div></div>
+  <div class="stat"><div class="stat-num">{exact_count}</div><div class="stat-label">Icons in Exact Groups</div></div>
+  <div class="stat"><div class="stat-num">{near_count}</div><div class="stat-label">Near Duplicate Pairs</div></div>
+</div>
+
+{"<h3>Exact Duplicates</h3><p class='dup-desc'>These icons have identical SVG path data despite having different names.</p>" if exact_group_html else ""}
+{"".join(exact_group_html)}
+
+{"<h3>Near Duplicates (>" + str(int(NEAR_DUPLICATE_THRESHOLD * 100)) + "% similar)</h3><p class='dup-desc'>These icons have very similar SVG paths and may be visual duplicates or minor variants.</p>" if near_group_html else ""}
+{"".join(near_group_html)}
+
+{"<p class='no-redundant'>No redundant icons detected.</p>" if not exact_group_html and not near_group_html else ""}
+"""
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -355,8 +552,9 @@ def generate_html(icons, primeicons_by_app, today):
   body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; padding: 24px; }}
   h1 {{ font-size: 28px; margin-bottom: 8px; }}
   h2 {{ font-size: 20px; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #e0e0e0; }}
+  h3 {{ font-size: 17px; margin: 24px 0 12px; color: #444; }}
   .subtitle {{ color: #666; margin-bottom: 24px; font-size: 14px; }}
-  .stats {{ display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }}
+  .stats, .redundant-stats {{ display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }}
   .stat {{ background: white; border-radius: 8px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }}
   .stat-num {{ font-size: 24px; font-weight: 700; }}
   .stat-label {{ font-size: 12px; color: #666; }}
@@ -368,7 +566,7 @@ def generate_html(icons, primeicons_by_app, today):
   .source-core {{ background: #e8f4fd; color: #2b6cb0; }}
   .source-custom {{ background: #fef3cd; color: #856404; }}
   .source-prime {{ background: #f0e6ff; color: #6b21a8; }}
-  .filters {{ margin-bottom: 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; position: sticky; top: 0; background: #f5f5f5; padding: 12px 0; z-index: 10; }}
+  .filters {{ margin-bottom: 24px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; position: sticky; top: 48px; background: #f5f5f5; padding: 12px 0; z-index: 9; }}
   .search {{ padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 300px; }}
   .filter-btn {{ padding: 6px 12px; border: 1px solid #ddd; border-radius: 16px; font-size: 12px; cursor: pointer; background: white; transition: all 0.2s; }}
   .filter-btn:hover, .filter-btn.active {{ background: #333; color: white; border-color: #333; }}
@@ -382,12 +580,45 @@ def generate_html(icons, primeicons_by_app, today):
   .app-tag {{ width: 8px; height: 8px; border-radius: 50%; }}
   .hidden {{ display: none; }}
   .count {{ font-size: 14px; color: #999; margin-left: 8px; }}
+
+  /* Tab Navigation */
+  .tab-nav {{ display: flex; gap: 0; margin-bottom: 24px; position: sticky; top: 0; background: #f5f5f5; padding: 12px 0 0; z-index: 10; border-bottom: 2px solid #e0e0e0; }}
+  .tab-btn {{ padding: 10px 24px; border: none; background: none; font-size: 15px; font-weight: 600; color: #888; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }}
+  .tab-btn:hover {{ color: #555; }}
+  .tab-btn.active {{ color: #333; border-bottom-color: #333; }}
+  .tab-btn .tab-badge {{ display: inline-block; background: #e53e3e; color: white; font-size: 10px; padding: 1px 6px; border-radius: 8px; margin-left: 6px; font-weight: 700; }}
+  .tab-content {{ display: none; }}
+  .tab-content.active {{ display: block; }}
+
+  /* Redundant Icons Page */
+  .dup-desc {{ color: #666; font-size: 13px; margin-bottom: 16px; }}
+  .dup-group {{ background: white; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }}
+  .dup-group-header {{ display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }}
+  .dup-type {{ font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }}
+  .dup-type.exact {{ background: #fed7d7; color: #c53030; }}
+  .dup-type.near {{ background: #fefcbf; color: #975a16; }}
+  .dup-group-label {{ font-size: 13px; color: #666; }}
+  .dup-group-icons {{ display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }}
+  .dup-card {{ display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px; border: 1px solid #eee; border-radius: 8px; min-width: 140px; max-width: 200px; }}
+  .dup-preview {{ width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; }}
+  .dup-preview svg {{ max-width: 100%; max-height: 100%; }}
+  .dup-name {{ font-size: 12px; font-weight: 600; text-align: center; word-break: break-all; color: #333; }}
+  .dup-apps {{ font-size: 10px; color: #888; text-align: center; }}
+  .no-redundant {{ text-align: center; padding: 48px; color: #999; font-size: 16px; }}
 </style>
 </head>
 <body>
 
 <h1>Anatomy Frontend Icon Gallery</h1>
 <p class="subtitle">{grand_total} total icons ({total} SVG components + {len(all_primeicons)} PrimeIcons) &mdash; Updated {today}</p>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('gallery', this)">Gallery</button>
+  <button class="tab-btn" onclick="switchTab('redundant', this)">Redundant Icons{f'<span class="tab-badge">{total_redundant_groups}</span>' if total_redundant_groups > 0 else ''}</button>
+</div>
+
+<!-- ═══ Gallery Tab ═══ -->
+<div class="tab-content active" id="tab-gallery">
 
 <div class="stats">
   <div class="stat"><div class="stat-num">{grand_total}</div><div class="stat-label">Total Icons</div></div>
@@ -419,7 +650,26 @@ def generate_html(icons, primeicons_by_app, today):
   {"".join(primeicon_cards)}
 </div>
 
+</div>
+
+<!-- ═══ Redundant Icons Tab ═══ -->
+<div class="tab-content" id="tab-redundant">
+<h2>Redundant Icon Analysis</h2>
+<p class="dup-desc">Icons detected as visually identical or very similar. Exact duplicates share identical SVG path data. Near duplicates have >{int(NEAR_DUPLICATE_THRESHOLD * 100)}% path similarity.</p>
+
+{redundant_section}
+</div>
+
 <script>
+/* Tab switching */
+function switchTab(tabId, btn) {{
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  btn.classList.add('active');
+}}
+
+/* Gallery filters */
 let currentFilter = 'all';
 
 function setFilter(app, btn) {{
@@ -444,6 +694,7 @@ function filterIcons() {{
   document.getElementById('visibleCount').textContent = visible + ' icons';
 }}
 
+/* Click to copy SVG */
 document.querySelectorAll('.icon-card').forEach(card => {{
   card.addEventListener('click', () => {{
     const preview = card.querySelector('.icon-preview');
@@ -532,9 +783,24 @@ def main():
             primeicons_by_app[app_name] = pi
             print(f"  {app_name}: {len(pi)} PrimeIcons")
 
-    # 5. Generate HTML
+    # 5. Detect redundant icons
+    print("Analyzing icons for redundancy...")
+    exact_groups, near_groups = find_redundant_groups(icons)
+    print(f"  Exact duplicate groups: {len(exact_groups)}")
+    for group in exact_groups:
+        print(f"    {group}")
+    print(f"  Near duplicate pairs (>{int(NEAR_DUPLICATE_THRESHOLD * 100)}% similar): {len(near_groups)}")
+    for name_a, name_b, sim in near_groups:
+        print(f"    {name_a} <-> {name_b}  ({int(sim * 100)}%)")
+
+    redundant_data = {
+        "exact_groups": exact_groups,
+        "near_groups": near_groups,
+    }
+
+    # 6. Generate HTML
     print("Generating HTML...")
-    html = generate_html(icons, primeicons_by_app, date.today().isoformat())
+    html = generate_html(icons, primeicons_by_app, redundant_data, date.today().isoformat())
     OUTPUT_FILE.write_text(html, encoding="utf-8")
     print(f"  Written to: {OUTPUT_FILE}")
 
